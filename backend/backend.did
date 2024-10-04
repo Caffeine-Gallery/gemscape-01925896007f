@@ -18,6 +18,7 @@ type Shape =
  };
 service : {
   addShape: (Shape) -> ();
+  clearAllShapes: () -> ();
   deleteShape: (text) -> ();
   getAllShapes: () -> (vec Shape) query;
   updateShape: (Shape) -> ();

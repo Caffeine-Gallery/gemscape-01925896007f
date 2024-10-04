@@ -18,6 +18,7 @@ export type ShapeType = { 'Line' : null } |
   { 'Ellipse' : null };
 export interface _SERVICE {
   'addShape' : ActorMethod<[Shape], undefined>,
+  'clearAllShapes' : ActorMethod<[], undefined>,
   'deleteShape' : ActorMethod<[string], undefined>,
   'getAllShapes' : ActorMethod<[], Array<Shape>>,
   'updateShape' : ActorMethod<[Shape], undefined>,

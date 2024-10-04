@@ -7,7 +7,9 @@ class GemScape {
     this.shapes = [];
     this.isDragging = false;
     this.isResizing = false;
+    this.isSelecting = false;
     this.selectedShape = null;
+    this.selectedShapes = [];
     this.resizeHandle = null;
     this.offsetX = 0;
     this.offsetY = 0;
@@ -17,6 +19,8 @@ class GemScape {
     this.lineStartPoint = null;
     this.colorPalette = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
     this.colorIndex = 0;
+    this.selectionStart = null;
+    this.selectionEnd = null;
 
     this.initCanvas();
     this.addEventListeners();
@@ -34,6 +38,8 @@ class GemScape {
     this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
     this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
     window.addEventListener('resize', this.handleResize.bind(this));
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+    document.getElementById('reset-button').addEventListener('click', this.resetCanvas.bind(this));
   }
 
   initToolbox() {
@@ -52,6 +58,7 @@ class GemScape {
       const ctx = tool.getContext('2d');
       ctx.clearRect(0, 0, tool.width, tool.height);
       ctx.fillStyle = this.currentColor;
+      ctx.strokeStyle = this.currentColor;
       
       switch (tool.dataset.shape) {
         case 'Circle':
@@ -67,7 +74,6 @@ class GemScape {
           ctx.moveTo(5, 5);
           ctx.lineTo(35, 35);
           ctx.lineWidth = 2;
-          ctx.strokeStyle = this.currentColor;
           ctx.stroke();
           break;
         case 'Triangle':
@@ -83,6 +89,15 @@ class GemScape {
           ctx.ellipse(20, 20, 15, 10, 0, 0, 2 * Math.PI);
           ctx.fill();
           break;
+        case 'Select':
+          ctx.strokeRect(5, 5, 30, 30);
+          ctx.beginPath();
+          ctx.moveTo(5, 5);
+          ctx.lineTo(35, 35);
+          ctx.moveTo(35, 5);
+          ctx.lineTo(5, 35);
+          ctx.stroke();
+          break;
       }
     });
   }
@@ -92,8 +107,10 @@ class GemScape {
     document.querySelectorAll('.tool').forEach(tool => {
       tool.classList.toggle('active', tool.dataset.shape === shape);
     });
-    this.colorIndex = (this.colorIndex + 1) % this.colorPalette.length;
-    this.currentColor = this.colorPalette[this.colorIndex];
+    if (shape !== 'Select') {
+      this.colorIndex = (this.colorIndex + 1) % this.colorPalette.length;
+      this.currentColor = this.colorPalette[this.colorIndex];
+    }
     this.drawToolboxShapes();
   }
 
@@ -130,11 +147,26 @@ class GemScape {
     }
   }
 
+  async resetCanvas() {
+    try {
+      await backend.clearAllShapes();
+      this.shapes = [];
+      this.redrawCanvas();
+    } catch (error) {
+      console.error('Error resetting canvas:', error);
+    }
+  }
+
   handleMouseDown(e) {
     const mouseX = e.clientX - this.canvas.offsetLeft;
     const mouseY = e.clientY - this.canvas.offsetTop;
 
-    if (this.currentTool === 'Line' && !this.isDrawingLine) {
+    if (this.currentTool === 'Select') {
+      this.isSelecting = true;
+      this.selectionStart = { x: mouseX, y: mouseY };
+      this.selectionEnd = { x: mouseX, y: mouseY };
+      this.selectedShapes = [];
+    } else if (this.currentTool === 'Line' && !this.isDrawingLine) {
       this.isDrawingLine = true;
       this.lineStartPoint = { x: mouseX, y: mouseY };
       return;
@@ -155,14 +187,20 @@ class GemScape {
       }
     }
 
-    this.createShape(mouseX, mouseY);
+    if (this.currentTool !== 'Select') {
+      this.createShape(mouseX, mouseY);
+    }
   }
 
   handleMouseMove(e) {
     const mouseX = e.clientX - this.canvas.offsetLeft;
     const mouseY = e.clientY - this.canvas.offsetTop;
 
-    if (this.isDragging && this.selectedShape) {
+    if (this.isSelecting) {
+      this.selectionEnd = { x: mouseX, y: mouseY };
+      this.redrawCanvas();
+      this.drawSelectionBox();
+    } else if (this.isDragging && this.selectedShape) {
       if (this.isResizing) {
         this.resizeShape(mouseX, mouseY);
       } else {
@@ -184,10 +222,11 @@ class GemScape {
   }
 
   handleMouseUp(e) {
-    if (this.selectedShape) {
+    if (this.isSelecting) {
+      this.finalizeSelection();
+    } else if (this.selectedShape) {
       this.updateShape(this.selectedShape);
-    }
-    if (this.isDrawingLine) {
+    } else if (this.isDrawingLine) {
       const mouseX = e.clientX - this.canvas.offsetLeft;
       const mouseY = e.clientY - this.canvas.offsetTop;
       this.createShape(mouseX, mouseY);
@@ -196,13 +235,21 @@ class GemScape {
     }
     this.isDragging = false;
     this.isResizing = false;
+    this.isSelecting = false;
     this.selectedShape = null;
     this.resizeHandle = null;
+    this.redrawCanvas();
   }
 
   handleResize() {
     this.initCanvas();
     this.redrawCanvas();
+  }
+
+  handleKeyDown(e) {
+    if (e.key === 'Delete' && this.selectedShapes.length > 0) {
+      this.deleteSelectedShapes();
+    }
   }
 
   createShape(mouseX, mouseY) {
@@ -275,7 +322,12 @@ class GemScape {
 
   redrawCanvas() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.shapes.forEach(shape => this.drawShape(shape));
+    this.shapes.forEach(shape => {
+      this.drawShape(shape);
+      if (this.selectedShapes.includes(shape)) {
+        this.drawSelectionBorder(shape);
+      }
+    });
   }
 
   drawShape(shape) {
@@ -311,9 +363,61 @@ class GemScape {
     }
   }
 
+  drawSelectionBorder(shape) {
+    this.ctx.strokeStyle = '#000000';
+    this.ctx.lineWidth = 2;
+    this.ctx.setLineDash([5, 5]);
+    this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+    this.ctx.setLineDash([]);
+  }
+
+  drawSelectionBox() {
+    this.ctx.strokeStyle = '#000000';
+    this.ctx.lineWidth = 1;
+    this.ctx.setLineDash([5, 5]);
+    const width = this.selectionEnd.x - this.selectionStart.x;
+    const height = this.selectionEnd.y - this.selectionStart.y;
+    this.ctx.strokeRect(this.selectionStart.x, this.selectionStart.y, width, height);
+    this.ctx.setLineDash([]);
+  }
+
   isPointInShape(x, y, shape) {
-    return x >= shape.x && x <= shape.x + shape.width &&
-           y >= shape.y && y <= shape.y + shape.height;
+    if (shape.shapeType === 'Circle' || shape.shapeType === 'Ellipse') {
+      const centerX = shape.x + shape.width / 2;
+      const centerY = shape.y + shape.height / 2;
+      const radiusX = shape.width / 2;
+      const radiusY = shape.height / 2;
+      return (Math.pow(x - centerX, 2) / Math.pow(radiusX, 2) + Math.pow(y - centerY, 2) / Math.pow(radiusY, 2)) <= 1;
+    } else if (shape.shapeType === 'Triangle') {
+      const area = this.triangleArea(
+        { x: shape.x + shape.width / 2, y: shape.y },
+        { x: shape.x, y: shape.y + shape.height },
+        { x: shape.x + shape.width, y: shape.y + shape.height }
+      );
+      const area1 = this.triangleArea(
+        { x, y },
+        { x: shape.x, y: shape.y + shape.height },
+        { x: shape.x + shape.width, y: shape.y + shape.height }
+      );
+      const area2 = this.triangleArea(
+        { x: shape.x + shape.width / 2, y: shape.y },
+        { x, y },
+        { x: shape.x + shape.width, y: shape.y + shape.height }
+      );
+      const area3 = this.triangleArea(
+        { x: shape.x + shape.width / 2, y: shape.y },
+        { x: shape.x, y: shape.y + shape.height },
+        { x, y }
+      );
+      return Math.abs(area - (area1 + area2 + area3)) < 0.1;
+    } else {
+      return x >= shape.x && x <= shape.x + shape.width &&
+             y >= shape.y && y <= shape.y + shape.height;
+    }
+  }
+
+  triangleArea(p1, p2, p3) {
+    return Math.abs((p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2);
   }
 
   getResizeHandle(x, y, shape) {
@@ -324,6 +428,10 @@ class GemScape {
       { x: shape.x, y: shape.y + shape.height },
       { x: shape.x + shape.width, y: shape.y + shape.height }
     ];
+
+    if (shape.shapeType === 'Triangle') {
+      corners.shift(); // Remove top corner for triangle
+    }
 
     for (let i = 0; i < corners.length; i++) {
       const corner = corners[i];
@@ -338,15 +446,19 @@ class GemScape {
     const shape = this.selectedShape;
     switch (this.resizeHandle) {
       case 0: // Top-left
-        shape.width += shape.x - mouseX;
-        shape.height += shape.y - mouseY;
-        shape.x = mouseX;
-        shape.y = mouseY;
+        if (shape.shapeType !== 'Triangle') {
+          shape.width += shape.x - mouseX;
+          shape.height += shape.y - mouseY;
+          shape.x = mouseX;
+          shape.y = mouseY;
+        }
         break;
       case 1: // Top-right
         shape.width = mouseX - shape.x;
-        shape.height += shape.y - mouseY;
-        shape.y = mouseY;
+        if (shape.shapeType !== 'Triangle') {
+          shape.height += shape.y - mouseY;
+          shape.y = mouseY;
+        }
         break;
       case 2: // Bottom-left
         shape.width += shape.x - mouseX;
@@ -365,7 +477,16 @@ class GemScape {
       const shape = this.shapes[i];
       const resizeHandle = this.getResizeHandle(mouseX, mouseY, shape);
       if (resizeHandle !== null) {
-        this.canvas.style.cursor = resizeHandle % 2 === 0 ? 'nwse-resize' : 'nesw-resize';
+        switch (resizeHandle) {
+          case 0:
+          case 3:
+            this.canvas.style.cursor = 'nwse-resize';
+            break;
+          case 1:
+          case 2:
+            this.canvas.style.cursor = 'nesw-resize';
+            break;
+        }
         return;
       }
       if (this.isPointInShape(mouseX, mouseY, shape)) {
@@ -373,7 +494,33 @@ class GemScape {
         return;
       }
     }
-    this.canvas.style.cursor = this.currentTool === 'Line' && this.isDrawingLine ? 'crosshair' : 'default';
+    this.canvas.style.cursor = this.currentTool === 'Select' ? 'crosshair' : 'default';
+  }
+
+  finalizeSelection() {
+    const left = Math.min(this.selectionStart.x, this.selectionEnd.x);
+    const top = Math.min(this.selectionStart.y, this.selectionEnd.y);
+    const right = Math.max(this.selectionStart.x, this.selectionEnd.x);
+    const bottom = Math.max(this.selectionStart.y, this.selectionEnd.y);
+
+    this.selectedShapes = this.shapes.filter(shape => 
+      shape.x >= left && shape.x + shape.width <= right &&
+      shape.y >= top && shape.y + shape.height <= bottom
+    );
+
+    this.redrawCanvas();
+  }
+
+  deleteSelectedShapes() {
+    this.selectedShapes.forEach(shape => {
+      const index = this.shapes.findIndex(s => s.id === shape.id);
+      if (index !== -1) {
+        this.shapes.splice(index, 1);
+        this.deleteShape(shape.id);
+      }
+    });
+    this.selectedShapes = [];
+    this.redrawCanvas();
   }
 }
 

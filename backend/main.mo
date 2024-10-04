@@ -63,4 +63,9 @@ actor {
   public query func getAllShapes() : async [Shape] {
     Iter.toArray(shapesMap.vals())
   };
+
+  // Clear all shapes
+  public func clearAllShapes() : async () {
+    shapesMap := HashMap.HashMap<Text, Shape>(0, Text.equal, Text.hash);
+  };
 }
