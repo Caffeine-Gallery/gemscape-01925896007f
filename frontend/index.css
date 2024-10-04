@@ -44,22 +44,18 @@ main {
 
 .tool {
     margin: 0 5px;
-    padding: 10px 15px;
-    font-size: 14px;
-    background-color: #ffffff;
-    border: 1px solid #ddd;
-    border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    transition: border-color 0.3s;
 }
 
 .tool:hover {
-    background-color: #f0f0f0;
+    border-color: #ddd;
 }
 
 .tool.active {
-    background-color: #e0e0e0;
-    font-weight: bold;
+    border-color: #333;
 }
 
 #gemscape-canvas {
@@ -74,7 +70,7 @@ main {
     }
 
     .tool {
-        padding: 8px 12px;
-        font-size: 12px;
+        width: 30px;
+        height: 30px;
     }
 }
