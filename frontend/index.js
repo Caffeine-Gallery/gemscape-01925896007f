@@ -21,6 +21,8 @@ class GemScape {
     this.colorIndex = 0;
     this.selectionStart = null;
     this.selectionEnd = null;
+    this.isDraggingLineEndpoint = false;
+    this.draggedLineEndpoint = null;
 
     this.initCanvas();
     this.addEventListeners();
@@ -175,6 +177,11 @@ class GemScape {
     for (let i = this.shapes.length - 1; i >= 0; i--) {
       const shape = this.shapes[i];
       if (this.isPointInShape(mouseX, mouseY, shape)) {
+        if (this.currentTool === 'Select') {
+          this.selectedShapes = [shape];
+          this.redrawCanvas();
+          return;
+        }
         this.selectedShape = shape;
         this.isDragging = true;
         this.offsetX = mouseX - shape.x;
@@ -182,6 +189,12 @@ class GemScape {
         this.resizeHandle = this.getResizeHandle(mouseX, mouseY, shape);
         if (this.resizeHandle) {
           this.isResizing = true;
+        } else if (shape.shapeType === 'Line') {
+          const endpoint = this.getLineEndpoint(mouseX, mouseY, shape);
+          if (endpoint) {
+            this.isDraggingLineEndpoint = true;
+            this.draggedLineEndpoint = endpoint;
+          }
         }
         return;
       }
@@ -203,6 +216,8 @@ class GemScape {
     } else if (this.isDragging && this.selectedShape) {
       if (this.isResizing) {
         this.resizeShape(mouseX, mouseY);
+      } else if (this.isDraggingLineEndpoint) {
+        this.dragLineEndpoint(mouseX, mouseY);
       } else {
         this.selectedShape.x = mouseX - this.offsetX;
         this.selectedShape.y = mouseY - this.offsetY;
@@ -236,6 +251,8 @@ class GemScape {
     this.isDragging = false;
     this.isResizing = false;
     this.isSelecting = false;
+    this.isDraggingLineEndpoint = false;
+    this.draggedLineEndpoint = null;
     this.selectedShape = null;
     this.resizeHandle = null;
     this.redrawCanvas();
@@ -410,6 +427,11 @@ class GemScape {
         { x, y }
       );
       return Math.abs(area - (area1 + area2 + area3)) < 0.1;
+    } else if (shape.shapeType === 'Line') {
+      const lineLength = Math.sqrt(Math.pow(shape.width, 2) + Math.pow(shape.height, 2));
+      const d1 = this.distancePointToPoint(x, y, shape.x, shape.y);
+      const d2 = this.distancePointToPoint(x, y, shape.x + shape.width, shape.y + shape.height);
+      return Math.abs(d1 + d2 - lineLength) < 0.1;
     } else {
       return x >= shape.x && x <= shape.x + shape.width &&
              y >= shape.y && y <= shape.y + shape.height;
@@ -418,6 +440,10 @@ class GemScape {
 
   triangleArea(p1, p2, p3) {
     return Math.abs((p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2);
+  }
+
+  distancePointToPoint(x1, y1, x2, y2) {
+    return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
   }
 
   getResizeHandle(x, y, shape) {
@@ -438,6 +464,20 @@ class GemScape {
       if (Math.abs(x - corner.x) <= handleSize && Math.abs(y - corner.y) <= handleSize) {
         return i;
       }
+    }
+    return null;
+  }
+
+  getLineEndpoint(x, y, shape) {
+    const handleSize = 10;
+    const start = { x: shape.x, y: shape.y };
+    const end = { x: shape.x + shape.width, y: shape.y + shape.height };
+
+    if (Math.abs(x - start.x) <= handleSize && Math.abs(y - start.y) <= handleSize) {
+      return 'start';
+    }
+    if (Math.abs(x - end.x) <= handleSize && Math.abs(y - end.y) <= handleSize) {
+      return 'end';
     }
     return null;
   }
@@ -472,6 +512,19 @@ class GemScape {
     }
   }
 
+  dragLineEndpoint(mouseX, mouseY) {
+    const shape = this.selectedShape;
+    if (this.draggedLineEndpoint === 'start') {
+      shape.width += shape.x - mouseX;
+      shape.height += shape.y - mouseY;
+      shape.x = mouseX;
+      shape.y = mouseY;
+    } else if (this.draggedLineEndpoint === 'end') {
+      shape.width = mouseX - shape.x;
+      shape.height = mouseY - shape.y;
+    }
+  }
+
   updateCursor(mouseX, mouseY) {
     for (let i = this.shapes.length - 1; i >= 0; i--) {
       const shape = this.shapes[i];
@@ -488,6 +541,13 @@ class GemScape {
             break;
         }
         return;
+      }
+      if (shape.shapeType === 'Line') {
+        const endpoint = this.getLineEndpoint(mouseX, mouseY, shape);
+        if (endpoint) {
+          this.canvas.style.cursor = 'move';
+          return;
+        }
       }
       if (this.isPointInShape(mouseX, mouseY, shape)) {
         this.canvas.style.cursor = 'move';
