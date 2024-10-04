@@ -23,6 +23,7 @@ class GemScape {
     this.selectionEnd = null;
     this.isDraggingLineEndpoint = false;
     this.draggedLineEndpoint = null;
+    this.previousState = null;
 
     this.initCanvas();
     this.addEventListeners();
@@ -148,30 +149,32 @@ class GemScape {
       await backend.saveShapes(this.shapes);
     } catch (error) {
       console.error('Error saving shapes:', error);
-      await this.retrySaveShapes();
+      this.revertToLastState();
+      this.redrawCanvas();
     }
   }
 
-  async retrySaveShapes(retries = 3) {
-    for (let i = 0; i < retries; i++) {
-      try {
-        await backend.saveShapes(this.shapes);
-        return;
-      } catch (error) {
-        console.error(`Retry ${i + 1} failed:`, error);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
+  saveState() {
+    this.previousState = JSON.parse(JSON.stringify(this.shapes));
+  }
+
+  revertToLastState() {
+    if (this.previousState) {
+      this.shapes = this.previousState;
+      this.previousState = null;
     }
-    console.error('Failed to save shapes after multiple attempts');
   }
 
   async resetCanvas() {
+    this.saveState();
     try {
       await backend.clearAllShapes();
       this.shapes = [];
       this.redrawCanvas();
     } catch (error) {
       console.error('Error resetting canvas:', error);
+      this.revertToLastState();
+      this.redrawCanvas();
     }
   }
 
@@ -256,6 +259,8 @@ class GemScape {
     if (this.isSelecting) {
       this.finalizeSelection();
     } else if (this.selectedShape) {
+      this.saveState();
+      this.redrawCanvas();
       await this.saveShapes();
     } else if (this.isDrawingLine) {
       const mouseX = e.clientX - this.canvas.offsetLeft;
@@ -271,7 +276,6 @@ class GemScape {
     this.draggedLineEndpoint = null;
     this.selectedShape = null;
     this.resizeHandle = null;
-    this.redrawCanvas();
   }
 
   handleResize() {
@@ -347,9 +351,10 @@ class GemScape {
         break;
     }
     if (newShape) {
+      this.saveState();
       this.shapes.push(newShape);
-      await this.saveShapes();
       this.redrawCanvas();
+      await this.saveShapes();
     }
   }
 
@@ -520,7 +525,7 @@ class GemScape {
         shape.height = mouseY - shape.y;
         break;
     }
-    await this.saveShapes();
+    this.redrawCanvas();
   }
 
   async dragLineEndpoint(mouseX, mouseY) {
@@ -534,7 +539,7 @@ class GemScape {
       shape.width = mouseX - shape.x;
       shape.height = mouseY - shape.y;
     }
-    await this.saveShapes();
+    this.redrawCanvas();
   }
 
   updateCursor(mouseX, mouseY) {
@@ -584,10 +589,11 @@ class GemScape {
   }
 
   async deleteSelectedShapes() {
+    this.saveState();
     this.shapes = this.shapes.filter(shape => !this.selectedShapes.includes(shape));
     this.selectedShapes = [];
-    await this.saveShapes();
     this.redrawCanvas();
+    await this.saveShapes();
   }
 }
 
