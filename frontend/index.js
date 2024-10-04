@@ -126,7 +126,6 @@ class GemScape {
       this.shapes = await backend.getAllShapes();
     } catch (error) {
       console.error('Error loading shapes:', error);
-      // Implement retry mechanism
       await this.retryLoadShapes();
     }
   }
@@ -138,7 +137,7 @@ class GemScape {
         return;
       } catch (error) {
         console.error(`Retry ${i + 1} failed:`, error);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     console.error('Failed to load shapes after multiple attempts');
@@ -149,7 +148,6 @@ class GemScape {
       await backend.saveShapes(this.shapes);
     } catch (error) {
       console.error('Error saving shapes:', error);
-      // Implement retry mechanism
       await this.retrySaveShapes();
     }
   }
@@ -161,7 +159,7 @@ class GemScape {
         return;
       } catch (error) {
         console.error(`Retry ${i + 1} failed:`, error);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
     console.error('Failed to save shapes after multiple attempts');
@@ -207,7 +205,7 @@ class GemScape {
         this.resizeHandle = this.getResizeHandle(mouseX, mouseY, shape);
         if (this.resizeHandle) {
           this.isResizing = true;
-        } else if (shape.shapeType === 'Line') {
+        } else if (shape.shapeType.hasOwnProperty('Line')) {
           const endpoint = this.getLineEndpoint(mouseX, mouseY, shape);
           if (endpoint) {
             this.isDraggingLineEndpoint = true;
@@ -293,7 +291,7 @@ class GemScape {
       case 'Circle':
         newShape = {
           id: Date.now().toString(),
-          shapeType: 'Circle',
+          shapeType: { Circle: null },
           x: mouseX - 25,
           y: mouseY - 25,
           width: 50,
@@ -304,7 +302,7 @@ class GemScape {
       case 'Square':
         newShape = {
           id: Date.now().toString(),
-          shapeType: 'Square',
+          shapeType: { Square: null },
           x: mouseX - 25,
           y: mouseY - 25,
           width: 50,
@@ -316,7 +314,7 @@ class GemScape {
         if (this.lineStartPoint) {
           newShape = {
             id: Date.now().toString(),
-            shapeType: 'Line',
+            shapeType: { Line: null },
             x: this.lineStartPoint.x,
             y: this.lineStartPoint.y,
             width: mouseX - this.lineStartPoint.x,
@@ -328,7 +326,7 @@ class GemScape {
       case 'Triangle':
         newShape = {
           id: Date.now().toString(),
-          shapeType: 'Triangle',
+          shapeType: { Triangle: null },
           x: mouseX - 25,
           y: mouseY - 25,
           width: 50,
@@ -339,7 +337,7 @@ class GemScape {
       case 'Ellipse':
         newShape = {
           id: Date.now().toString(),
-          shapeType: 'Ellipse',
+          shapeType: { Ellipse: null },
           x: mouseX - 25,
           y: mouseY - 25,
           width: 50,
@@ -371,30 +369,24 @@ class GemScape {
     this.ctx.lineWidth = 2;
     this.ctx.beginPath();
 
-    switch (shape.shapeType) {
-      case 'Circle':
-        this.ctx.arc(shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width / 2, 0, 2 * Math.PI);
-        this.ctx.fill();
-        break;
-      case 'Square':
-        this.ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
-        break;
-      case 'Line':
-        this.ctx.moveTo(shape.x, shape.y);
-        this.ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
-        this.ctx.stroke();
-        break;
-      case 'Triangle':
-        this.ctx.moveTo(shape.x + shape.width / 2, shape.y);
-        this.ctx.lineTo(shape.x, shape.y + shape.height);
-        this.ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
-        this.ctx.closePath();
-        this.ctx.fill();
-        break;
-      case 'Ellipse':
-        this.ctx.ellipse(shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width / 2, shape.height / 2, 0, 0, 2 * Math.PI);
-        this.ctx.fill();
-        break;
+    if (shape.shapeType.hasOwnProperty('Circle')) {
+      this.ctx.arc(shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width / 2, 0, 2 * Math.PI);
+      this.ctx.fill();
+    } else if (shape.shapeType.hasOwnProperty('Square')) {
+      this.ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+    } else if (shape.shapeType.hasOwnProperty('Line')) {
+      this.ctx.moveTo(shape.x, shape.y);
+      this.ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
+      this.ctx.stroke();
+    } else if (shape.shapeType.hasOwnProperty('Triangle')) {
+      this.ctx.moveTo(shape.x + shape.width / 2, shape.y);
+      this.ctx.lineTo(shape.x, shape.y + shape.height);
+      this.ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
+      this.ctx.closePath();
+      this.ctx.fill();
+    } else if (shape.shapeType.hasOwnProperty('Ellipse')) {
+      this.ctx.ellipse(shape.x + shape.width / 2, shape.y + shape.height / 2, shape.width / 2, shape.height / 2, 0, 0, 2 * Math.PI);
+      this.ctx.fill();
     }
   }
 
@@ -417,13 +409,13 @@ class GemScape {
   }
 
   isPointInShape(x, y, shape) {
-    if (shape.shapeType === 'Circle' || shape.shapeType === 'Ellipse') {
+    if (shape.shapeType.hasOwnProperty('Circle') || shape.shapeType.hasOwnProperty('Ellipse')) {
       const centerX = shape.x + shape.width / 2;
       const centerY = shape.y + shape.height / 2;
       const radiusX = shape.width / 2;
       const radiusY = shape.height / 2;
       return (Math.pow(x - centerX, 2) / Math.pow(radiusX, 2) + Math.pow(y - centerY, 2) / Math.pow(radiusY, 2)) <= 1;
-    } else if (shape.shapeType === 'Triangle') {
+    } else if (shape.shapeType.hasOwnProperty('Triangle')) {
       const area = this.triangleArea(
         { x: shape.x + shape.width / 2, y: shape.y },
         { x: shape.x, y: shape.y + shape.height },
@@ -445,7 +437,7 @@ class GemScape {
         { x, y }
       );
       return Math.abs(area - (area1 + area2 + area3)) < 0.1;
-    } else if (shape.shapeType === 'Line') {
+    } else if (shape.shapeType.hasOwnProperty('Line')) {
       const lineLength = Math.sqrt(Math.pow(shape.width, 2) + Math.pow(shape.height, 2));
       const d1 = this.distancePointToPoint(x, y, shape.x, shape.y);
       const d2 = this.distancePointToPoint(x, y, shape.x + shape.width, shape.y + shape.height);
@@ -473,7 +465,7 @@ class GemScape {
       { x: shape.x + shape.width, y: shape.y + shape.height }
     ];
 
-    if (shape.shapeType === 'Triangle') {
+    if (shape.shapeType.hasOwnProperty('Triangle')) {
       corners.shift(); // Remove top corner for triangle
     }
 
@@ -504,7 +496,7 @@ class GemScape {
     const shape = this.selectedShape;
     switch (this.resizeHandle) {
       case 0: // Top-left
-        if (shape.shapeType !== 'Triangle') {
+        if (!shape.shapeType.hasOwnProperty('Triangle')) {
           shape.width += shape.x - mouseX;
           shape.height += shape.y - mouseY;
           shape.x = mouseX;
@@ -513,7 +505,7 @@ class GemScape {
         break;
       case 1: // Top-right
         shape.width = mouseX - shape.x;
-        if (shape.shapeType !== 'Triangle') {
+        if (!shape.shapeType.hasOwnProperty('Triangle')) {
           shape.height += shape.y - mouseY;
           shape.y = mouseY;
         }
@@ -562,7 +554,7 @@ class GemScape {
         }
         return;
       }
-      if (shape.shapeType === 'Line') {
+      if (shape.shapeType.hasOwnProperty('Line')) {
         const endpoint = this.getLineEndpoint(mouseX, mouseY, shape);
         if (endpoint) {
           this.canvas.style.cursor = 'move';
