@@ -30,42 +30,32 @@ actor {
   };
 
   // Stable variable to store shapes
-  stable var shapes : [(Text, Shape)] = [];
-
-  // HashMap to store shapes in memory
-  var shapesMap = HashMap.HashMap<Text, Shape>(0, Text.equal, Text.hash);
-
-  // Initialize shapesMap from stable shapes on upgrade
-  system func preupgrade() {
-    shapes := Iter.toArray(shapesMap.entries());
-  };
-
-  system func postupgrade() {
-    shapesMap := HashMap.fromIter<Text, Shape>(shapes.vals(), 0, Text.equal, Text.hash);
-  };
+  stable var shapes : [Shape] = [];
 
   // Add a new shape
   public func addShape(shape: Shape) : async () {
-    shapesMap.put(shape.id, shape);
+    shapes := Array.append(shapes, [shape]);
   };
 
   // Update an existing shape
   public func updateShape(shape: Shape) : async () {
-    shapesMap.put(shape.id, shape);
+    shapes := Array.map<Shape, Shape>(shapes, func (s) {
+      if (s.id == shape.id) { shape } else { s }
+    });
   };
 
   // Delete a shape
   public func deleteShape(id: Text) : async () {
-    shapesMap.delete(id);
+    shapes := Array.filter<Shape>(shapes, func (s) { s.id != id });
   };
 
   // Get all shapes
   public query func getAllShapes() : async [Shape] {
-    Iter.toArray(shapesMap.vals())
+    shapes
   };
 
   // Clear all shapes
   public func clearAllShapes() : async () {
-    shapesMap := HashMap.HashMap<Text, Shape>(0, Text.equal, Text.hash);
+    shapes := [];
   };
 }
