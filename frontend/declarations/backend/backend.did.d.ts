@@ -21,6 +21,7 @@ export interface _SERVICE {
   'clearAllShapes' : ActorMethod<[], undefined>,
   'deleteShape' : ActorMethod<[string], undefined>,
   'getAllShapes' : ActorMethod<[], Array<Shape>>,
+  'saveShapes' : ActorMethod<[Array<Shape>], undefined>,
   'updateShape' : ActorMethod<[Shape], undefined>,
 }
 export declare const idlFactory: IDL.InterfaceFactory;

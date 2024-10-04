@@ -20,6 +20,7 @@ export const idlFactory = ({ IDL }) => {
     'clearAllShapes' : IDL.Func([], [], []),
     'deleteShape' : IDL.Func([IDL.Text], [], []),
     'getAllShapes' : IDL.Func([], [IDL.Vec(Shape)], ['query']),
+    'saveShapes' : IDL.Func([IDL.Vec(Shape)], [], []),
     'updateShape' : IDL.Func([Shape], [], []),
   });
 };

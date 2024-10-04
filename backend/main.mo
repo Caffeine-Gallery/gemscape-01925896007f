@@ -1,11 +1,6 @@
-import Hash "mo:base/Hash";
-
 import Array "mo:base/Array";
 import Float "mo:base/Float";
-import HashMap "mo:base/HashMap";
 import Iter "mo:base/Iter";
-import Nat "mo:base/Nat";
-import Option "mo:base/Option";
 import Text "mo:base/Text";
 
 actor {
@@ -57,5 +52,10 @@ actor {
   // Clear all shapes
   public func clearAllShapes() : async () {
     shapes := [];
+  };
+
+  // Save multiple shapes at once
+  public func saveShapes(newShapes: [Shape]) : async () {
+    shapes := newShapes;
   };
 }

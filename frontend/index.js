@@ -125,27 +125,11 @@ class GemScape {
     }
   }
 
-  async saveShape(shape) {
+  async saveShapes() {
     try {
-      await backend.addShape(shape);
+      await backend.saveShapes(this.shapes);
     } catch (error) {
-      console.error('Error saving shape:', error);
-    }
-  }
-
-  async updateShape(shape) {
-    try {
-      await backend.updateShape(shape);
-    } catch (error) {
-      console.error('Error updating shape:', error);
-    }
-  }
-
-  async deleteShape(id) {
-    try {
-      await backend.deleteShape(id);
-    } catch (error) {
-      console.error('Error deleting shape:', error);
+      console.error('Error saving shapes:', error);
     }
   }
 
@@ -236,11 +220,11 @@ class GemScape {
     }
   }
 
-  handleMouseUp(e) {
+  async handleMouseUp(e) {
     if (this.isSelecting) {
       this.finalizeSelection();
     } else if (this.selectedShape) {
-      this.updateShape(this.selectedShape);
+      await this.saveShapes();
     } else if (this.isDrawingLine) {
       const mouseX = e.clientX - this.canvas.offsetLeft;
       const mouseY = e.clientY - this.canvas.offsetTop;
@@ -263,13 +247,13 @@ class GemScape {
     this.redrawCanvas();
   }
 
-  handleKeyDown(e) {
+  async handleKeyDown(e) {
     if (e.key === 'Delete' && this.selectedShapes.length > 0) {
-      this.deleteSelectedShapes();
+      await this.deleteSelectedShapes();
     }
   }
 
-  createShape(mouseX, mouseY) {
+  async createShape(mouseX, mouseY) {
     let newShape;
     switch (this.currentTool) {
       case 'Circle':
@@ -332,7 +316,7 @@ class GemScape {
     }
     if (newShape) {
       this.shapes.push(newShape);
-      this.saveShape(newShape);
+      await this.saveShapes();
       this.redrawCanvas();
     }
   }
@@ -482,7 +466,7 @@ class GemScape {
     return null;
   }
 
-  resizeShape(mouseX, mouseY) {
+  async resizeShape(mouseX, mouseY) {
     const shape = this.selectedShape;
     switch (this.resizeHandle) {
       case 0: // Top-left
@@ -510,9 +494,10 @@ class GemScape {
         shape.height = mouseY - shape.y;
         break;
     }
+    await this.saveShapes();
   }
 
-  dragLineEndpoint(mouseX, mouseY) {
+  async dragLineEndpoint(mouseX, mouseY) {
     const shape = this.selectedShape;
     if (this.draggedLineEndpoint === 'start') {
       shape.width += shape.x - mouseX;
@@ -523,6 +508,7 @@ class GemScape {
       shape.width = mouseX - shape.x;
       shape.height = mouseY - shape.y;
     }
+    await this.saveShapes();
   }
 
   updateCursor(mouseX, mouseY) {
@@ -571,15 +557,10 @@ class GemScape {
     this.redrawCanvas();
   }
 
-  deleteSelectedShapes() {
-    this.selectedShapes.forEach(shape => {
-      const index = this.shapes.findIndex(s => s.id === shape.id);
-      if (index !== -1) {
-        this.shapes.splice(index, 1);
-        this.deleteShape(shape.id);
-      }
-    });
+  async deleteSelectedShapes() {
+    this.shapes = this.shapes.filter(shape => !this.selectedShapes.includes(shape));
     this.selectedShapes = [];
+    await this.saveShapes();
     this.redrawCanvas();
   }
 }
