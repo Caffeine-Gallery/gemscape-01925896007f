@@ -1,0 +1,24 @@
+type ShapeType = 
+ variant {
+   Circle;
+   Ellipse;
+   Line;
+   Square;
+   Triangle;
+ };
+type Shape = 
+ record {
+   color: text;
+   height: float64;
+   id: text;
+   shapeType: ShapeType;
+   width: float64;
+   x: float64;
+   y: float64;
+ };
+service : {
+  addShape: (Shape) -> ();
+  deleteShape: (text) -> ();
+  getAllShapes: () -> (vec Shape) query;
+  updateShape: (Shape) -> ();
+}
