@@ -11,15 +11,17 @@ class GemScape {
     this.resizeHandle = null;
     this.offsetX = 0;
     this.offsetY = 0;
+    this.currentTool = 'Circle';
 
     this.initCanvas();
     this.addEventListeners();
     this.loadShapes();
+    this.initToolbox();
   }
 
   initCanvas() {
     this.canvas.width = window.innerWidth - 40;
-    this.canvas.height = window.innerHeight - 100;
+    this.canvas.height = window.innerHeight - 150;
   }
 
   addEventListeners() {
@@ -28,6 +30,23 @@ class GemScape {
     this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
     this.canvas.addEventListener('dblclick', this.handleDoubleClick.bind(this));
     window.addEventListener('resize', this.handleResize.bind(this));
+  }
+
+  initToolbox() {
+    const toolbox = document.getElementById('toolbox');
+    toolbox.addEventListener('click', (e) => {
+      if (e.target.classList.contains('tool')) {
+        this.setCurrentTool(e.target.dataset.shape);
+      }
+    });
+    this.setCurrentTool('Circle');
+  }
+
+  setCurrentTool(shape) {
+    this.currentTool = shape;
+    document.querySelectorAll('.tool').forEach(tool => {
+      tool.classList.toggle('active', tool.dataset.shape === shape);
+    });
   }
 
   async loadShapes() {
@@ -113,11 +132,9 @@ class GemScape {
   handleDoubleClick(e) {
     const mouseX = e.clientX - this.canvas.offsetLeft;
     const mouseY = e.clientY - this.canvas.offsetTop;
-    const shapeTypes = ['Circle', 'Square', 'Line', 'Triangle', 'Ellipse'];
-    const randomType = shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
     const newShape = {
       id: Date.now().toString(),
-      shapeType: randomType,
+      shapeType: this.currentTool,
       x: mouseX,
       y: mouseY,
       width: 50,
