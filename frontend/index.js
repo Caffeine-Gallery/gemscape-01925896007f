@@ -26,8 +26,13 @@ class GemScape {
 
     this.initCanvas();
     this.addEventListeners();
-    this.loadShapes();
     this.initToolbox();
+    this.init();
+  }
+
+  async init() {
+    await this.loadShapes();
+    this.redrawCanvas();
   }
 
   initCanvas() {
@@ -119,10 +124,24 @@ class GemScape {
   async loadShapes() {
     try {
       this.shapes = await backend.getAllShapes();
-      this.redrawCanvas();
     } catch (error) {
       console.error('Error loading shapes:', error);
+      // Implement retry mechanism
+      await this.retryLoadShapes();
     }
+  }
+
+  async retryLoadShapes(retries = 3) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        this.shapes = await backend.getAllShapes();
+        return;
+      } catch (error) {
+        console.error(`Retry ${i + 1} failed:`, error);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
+      }
+    }
+    console.error('Failed to load shapes after multiple attempts');
   }
 
   async saveShapes() {
@@ -130,7 +149,22 @@ class GemScape {
       await backend.saveShapes(this.shapes);
     } catch (error) {
       console.error('Error saving shapes:', error);
+      // Implement retry mechanism
+      await this.retrySaveShapes();
     }
+  }
+
+  async retrySaveShapes(retries = 3) {
+    for (let i = 0; i < retries; i++) {
+      try {
+        await backend.saveShapes(this.shapes);
+        return;
+      } catch (error) {
+        console.error(`Retry ${i + 1} failed:`, error);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retrying
+      }
+    }
+    console.error('Failed to save shapes after multiple attempts');
   }
 
   async resetCanvas() {
@@ -565,6 +599,7 @@ class GemScape {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  new GemScape();
+document.addEventListener('DOMContentLoaded', async () => {
+  const gemscape = new GemScape();
+  await gemscape.init();
 });
