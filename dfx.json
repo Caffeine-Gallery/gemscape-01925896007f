@@ -12,16 +12,10 @@
         "entrypoint": "frontend/index.html"
       },
       "source": [
-        "dist/frontend/"
+        "dist/frontend"
       ],
+      "workspace": "frontend",
       "type": "assets"
     }
-  },
-  "defaults": {
-    "build": {
-      "args": "",
-      "packtool": ""
-    }
-  },
-  "version": 1
+  }
 }
